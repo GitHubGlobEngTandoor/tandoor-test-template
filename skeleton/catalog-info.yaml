@@ -1,0 +1,23 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.component_id }}
+  title: ${{ values.title }}
+  description: |-
+    ${{values.description | indent}}
+  tags: []
+  {%- if values.caseCode or values.region %}
+  annotations:
+    {%- if values.caseCode %}
+    bain.com/case-code: ${{ values.caseCode }}
+    {%- endif %}
+    {%- if values.region %}
+    bain.com/region: ${{ values.region }}
+    {%- endif %}
+  {%- endif %}
+
+spec:
+  type: library
+  lifecycle: ${{ values.lifecycle }}
+  owner: ${{ values.owner }}
+

@@ -1,0 +1,7 @@
+site_name: mark_test
+
+nav:
+  - Overview: 'README.md'
+
+plugins:
+  - techdocs-core

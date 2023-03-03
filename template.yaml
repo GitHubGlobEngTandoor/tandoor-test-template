@@ -1,0 +1,124 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: tandoor-test-template
+  title: mark_test
+  description: |-
+    
+  tags: []
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+spec:
+  owner: group:default/globalengineering
+  type: library
+  parameters:
+    - title: GitHub Owner
+      properties:
+        githubOwner:
+          title: GitHub Organization or user to create repository under
+          type: string
+          ui:field: GitHubOwner
+          description: Using a non-Bain owner may not support all features of this template.
+    - title: General information
+      required:
+        - title
+        - description
+        - details
+        - lifecycle
+      properties:
+        title:
+          title: Name
+          type: string
+          description: Name of the app
+        description:
+          title: Description
+          type: string
+          description: Help others understand what this app is for
+          ui:widget: textarea
+        details:
+          title: Owner
+          type: object
+          description: Repository Details
+          ui:field: BainDetails
+        collaborators:
+          type: array
+          ui:field: Collaborators
+        lifecycle:
+          title: Product Lifecycle
+          type: string
+          description: Product lifecycle are you working at
+          enum: ["poc", "mvp", "prod"]
+          enumNames: ["Proof of Concept", "MVP", "Production"]
+    - title: Repository & Component name
+      properties:
+        names:
+          type: object
+          ui:field: InferredNames
+
+# add your template-specific questions here
+
+    - title: Catalog
+      properties:
+        registerInCatalog:
+          title: Register in catalog (Ignored if outside Bain Github org)
+          type: boolean
+          default: true
+          enum: [true, false]
+  steps:
+    - id: template
+      name: Fetch skeleton + template
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          title: ${{ parameters.title }}
+          component_id: ${{ parameters.names.componentName }}
+          caseCode: ${{ parameters.details.caseCode }}
+          owner: ${{ parameters.details.owner or user.entity.metadata.name }}
+          description: ${{ parameters.description }}
+          region: ${{ parameters.details.region }}
+          lifecycle: ${{ parameters.lifecycle }}
+
+# add your template-specific steps here
+
+    - id: publish
+      name: Publish
+      action: publish:github
+      input:
+        description: ${{ parameters.description }}
+        defaultBranch: main
+        allowedHosts: ["github.com"]
+        repoUrl: github.com?repo=${{ parameters.names.repositoryName }}&owner=${{ parameters.githubOwner }}
+        collaborators: ${{ parameters.collaborators }}
+        token: ${{ secrets.token }}
+
+    - id: collaborators
+      name: Add collaborators
+      if: ${{ parameters.githubOwner == "Bain" }}
+      action: github:collaborators:add
+      input:
+        repo: ${{ parameters.names.repositoryName }}
+        owner: ${{ parameters.githubOwner }}
+        collaborators:
+          # Needed for add_security_checks_workflow
+          - username: bain-issues
+            permissions: push
+          - username: TSG-TFE-Service
+            permissions: admin
+
+    - id: register
+      name: Register
+      action: catalog:register
+      if: ${{ parameters.register_in_catalog and parameters.githubOwner == "Bain" }}
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: "/catalog-info.yaml"
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}
+
